@@ -14,6 +14,7 @@ import SwapPage from "./pages/Swap";
 import CoinDetail from "./pages/CoinDetail";
 import SettingsPage from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
+import GFXCPanelInstall from "./pages/GFXCPanelInstall";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/gfx" element={<AdminPanel />} />
             <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/gfxcpanelinstall" element={<GFXCPanelInstall />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </WalletProvider>
