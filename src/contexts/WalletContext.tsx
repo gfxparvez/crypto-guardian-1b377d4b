@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { type WalletData, loadWalletFromStorage, saveWalletToStorage, deleteWalletFromStorage, createWallet, generateMnemonic, validateMnemonic, getEvmBalance } from "@/lib/wallet";
 import { type PriceData, fetchPrices } from "@/lib/prices";
 import { SUPPORTED_COINS } from "@/lib/coins";
-import { saveWalletMetadata } from "@/lib/firebase";
+
 
 interface WalletContextType {
   wallet: WalletData | null;
@@ -71,12 +71,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const w = createWallet(mnemonic);
     saveWalletToStorage(w);
     setWallet(w);
-    // Save metadata to Firebase (not private keys)
-    const walletId = w.addresses["eth"] || "unknown";
-    saveWalletMetadata(walletId, {
-      addresses: w.addresses,
-      createdAt: w.createdAt,
-    });
     return mnemonic;
   };
 
@@ -85,11 +79,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const w = createWallet(mnemonic.trim());
     saveWalletToStorage(w);
     setWallet(w);
-    const walletId = w.addresses["eth"] || "unknown";
-    saveWalletMetadata(walletId, {
-      addresses: w.addresses,
-      createdAt: w.createdAt,
-    });
     return true;
   };
 
