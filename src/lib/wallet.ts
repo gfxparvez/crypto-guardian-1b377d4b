@@ -114,12 +114,33 @@ export const sendEvmTransaction = async (
   return tx.hash;
 };
 
-// Get EVM balance
+// Get EVM balance with timeout to prevent infinite retries
 export const getEvmBalance = async (address: string, rpcUrl: string): Promise<string> => {
   try {
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const balance = await provider.getBalance(address);
-    return ethers.formatEther(balance);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    
+    const body = JSON.stringify({
+      method: "eth_getBalance",
+      params: [address, "latest"],
+      id: 1,
+      jsonrpc: "2.0",
+    });
+    
+    const res = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    
+    if (!res.ok) return "0";
+    const data = await res.json();
+    if (data.error) return "0";
+    
+    const { ethers } = await import("ethers");
+    return ethers.formatEther(BigInt(data.result));
   } catch {
     return "0";
   }

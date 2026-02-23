@@ -55,6 +55,7 @@ const SendPage = () => {
       const hash = await sendEvmTransaction(wallet.mnemonic, coin, recipient.trim(), amount);
       await saveTransaction(wallet.addresses["eth"], {
         coin: coin.symbol,
+        type: "send",
         to: recipient.trim(),
         amount,
         hash,
