@@ -119,7 +119,10 @@ const Dashboard = () => {
 
         {/* Transaction History */}
         <div className="mt-8">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">Recent Transactions</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Recent Transactions</h2>
+            <Button variant="link" className="text-xs text-primary h-auto p-0" onClick={() => navigate("/send")}>New Transaction</Button>
+          </div>
           {transactions.length === 0 ? (
             <GlassCard className="p-6 text-center">
               <p className="text-muted-foreground">No transactions yet</p>
@@ -133,7 +136,10 @@ const Dashboard = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
                 >
-                  <GlassCard className="flex items-center justify-between p-4">
+                  <GlassCard 
+                    className="flex cursor-pointer items-center justify-between p-4 transition-all hover:bg-muted/10"
+                    onClick={() => navigate(`/coin/${SUPPORTED_COINS.find(c => c.symbol === tx.coin)?.id || 'eth'}`)}
+                  >
                     <div className="flex items-center gap-3">
                       <div className={`flex h-8 w-8 items-center justify-center rounded-full ${tx.type === "send" ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
                         {tx.type === "send" ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}

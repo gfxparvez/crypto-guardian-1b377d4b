@@ -137,8 +137,34 @@ export const getEvmBalance = async (address: string, rpcUrl: string): Promise<st
   }
 };
 
-// Save wallet to localStorage
-export const saveWalletToStorage = (wallet: WalletData) => {
+// Get transaction fee estimate
+export const getEvmFeeEstimate = async (
+  coin: CoinConfig,
+  to: string,
+  amount: string
+): Promise<{ fee: string; total: string }> => {
+  if (coin.network !== "evm" || !coin.rpcUrl) {
+    return { fee: "0", total: amount };
+  }
+
+  try {
+    const provider = new ethers.JsonRpcProvider(coin.rpcUrl);
+    const feeData = await provider.getFeeData();
+    const gasPrice = feeData.gasPrice ?? ethers.parseUnits("20", "gwei");
+    
+    // Estimate gas for a simple transfer
+    const gasLimit = 21000n;
+    const feeWei = gasPrice * gasLimit;
+    const fee = ethers.formatUnits(feeWei, coin.decimals);
+    const total = (parseFloat(amount || "0") + parseFloat(fee)).toString();
+    
+    return { fee, total };
+  } catch (error) {
+    console.warn("Failed to estimate fee:", error);
+    return { fee: "0.0001", total: (parseFloat(amount || "0") + 0.0001).toString() };
+  }
+};
+
   localStorage.setItem("stellar_vault_wallet", JSON.stringify(wallet));
 };
 

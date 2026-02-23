@@ -1,16 +1,30 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Download, TrendingUp, TrendingDown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Send, Download, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
 import { getCoinById } from "@/lib/coins";
+import { getTransactions, type TransactionRecord } from "@/lib/firebase";
 
 const CoinDetail = () => {
   const { coinId } = useParams<{ coinId: string }>();
   const navigate = useNavigate();
   const { wallet, prices, balances } = useWallet();
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+
+  useEffect(() => {
+    if (wallet?.addresses?.eth && coinId) {
+      const coin = getCoinById(coinId);
+      if (coin) {
+        getTransactions(wallet.addresses.eth).then((txs) => {
+          setTransactions(txs.filter(t => t.coin === coin.symbol));
+        });
+      }
+    }
+  }, [wallet, coinId]);
 
   if (!wallet) { navigate("/"); return null; }
 
@@ -73,6 +87,49 @@ const CoinDetail = () => {
             <Button className="bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20" onClick={() => navigate("/receive")}>
               <Download className="mr-2 h-4 w-4" /> Receive {coin.symbol}
             </Button>
+          </div>
+
+          {/* Transaction History for this coin */}
+          <div className="mt-8">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">Recent {coin.symbol} Transactions</h2>
+            {transactions.length === 0 ? (
+              <GlassCard className="p-6 text-center">
+                <p className="text-muted-foreground">No transactions for {coin.symbol} yet</p>
+              </GlassCard>
+            ) : (
+              <div className="space-y-2">
+                {transactions.map((tx, i) => (
+                  <motion.div
+                    key={`${tx.hash}-${i}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                  >
+                    <GlassCard className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${tx.type === "send" ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
+                          {tx.type === "send" ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{tx.type === "send" ? "Sent" : "Received"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {tx.to ? `To: ${tx.to.slice(0, 8)}...${tx.to.slice(-6)}` : tx.from ? `From: ${tx.from.slice(0, 8)}...${tx.from.slice(-6)}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-semibold ${tx.type === "send" ? "text-red-400" : "text-green-400"}`}>
+                          {tx.type === "send" ? "-" : "+"}{tx.amount} {tx.coin}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(tx.timestamp).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </GlassCard>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
