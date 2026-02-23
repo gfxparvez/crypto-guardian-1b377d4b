@@ -4,7 +4,7 @@
 A cryptocurrency wallet application built with React, Vite, TypeScript, and Tailwind CSS. Originally created in Lovable and migrated to Replit.
 
 ## Recent Changes
-- 2026-02-23: Migrated from Lovable to Replit environment
+- 2026-02-23: Fixed POL price (updated Coingecko ID to polygon-ecosystem) and wallet balance fetching (switched to ethers.js JsonRpcProvider)
 - Configured Vite dev server to run on port 5000 with all hosts allowed
 - Set up static deployment configuration
 
