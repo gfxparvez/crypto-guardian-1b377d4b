@@ -117,12 +117,23 @@ export const sendEvmTransaction = async (
 // Get EVM balance with timeout to prevent infinite retries
 export const getEvmBalance = async (address: string, rpcUrl: string): Promise<string> => {
   try {
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const balance = await provider.getBalance(address);
+    // Use a more resilient provider setup
+    const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+      staticNetwork: true,
+    });
+    
+    // Add a timeout for the balance check
+    const balancePromise = provider.getBalance(address);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("RPC Timeout")), 10000)
+    );
+    
+    const balance = await Promise.race([balancePromise, timeoutPromise]) as bigint;
     return ethers.formatEther(balance);
   } catch (error) {
-    console.error("Failed to fetch EVM balance:", error);
-    return "0";
+    console.warn(`Failed to fetch balance for ${address} from ${rpcUrl}:`, error);
+    // Return mock data for demonstration if RPC fails
+    return "0.00";
   }
 };
 

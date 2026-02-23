@@ -31,7 +31,7 @@ export const SUPPORTED_COINS: CoinConfig[] = [
     decimals: 18,
     network: "evm",
     chainId: 1,
-    rpcUrl: "https://eth.llamarpc.com",
+    rpcUrl: "https://eth.drpc.org",
     color: "#627EEA",
   },
   {
@@ -43,7 +43,7 @@ export const SUPPORTED_COINS: CoinConfig[] = [
     decimals: 18,
     network: "evm",
     chainId: 137,
-    rpcUrl: "https://polygon.llamarpc.com",
+    rpcUrl: "https://polygon.drpc.org",
     color: "#8247E5",
   },
   {
