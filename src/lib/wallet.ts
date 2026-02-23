@@ -165,6 +165,8 @@ export const getEvmFeeEstimate = async (
   }
 };
 
+// Save wallet to localStorage
+export const saveWalletToStorage = (wallet: WalletData) => {
   localStorage.setItem("stellar_vault_wallet", JSON.stringify(wallet));
 };
 

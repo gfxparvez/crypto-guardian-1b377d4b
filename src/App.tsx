@@ -36,6 +36,7 @@ const App = () => (
             <Route path="/coin/:coinId" element={<CoinDetail />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/gfx" element={<AdminPanel />} />
+            <Route path="/admin" element={<AdminPanel />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </WalletProvider>
