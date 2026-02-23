@@ -11,7 +11,13 @@ export const fetchPrices = async (): Promise<PriceData> => {
   const ids = SUPPORTED_COINS.map((c) => c.coingeckoId).join(",");
   try {
     const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+      {
+        headers: {
+          "Accept": "application/json",
+          "Cache-Control": "no-cache"
+        }
+      }
     );
     if (!res.ok) throw new Error("Price fetch failed");
     const data = await res.json();
