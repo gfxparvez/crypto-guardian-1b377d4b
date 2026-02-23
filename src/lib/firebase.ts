@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
-import { getDatabase, ref, set, get, child } from "firebase/database";
+import { getDatabase, ref, set, get } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAp6Pk__gW0_fwswuNZZk6EuCVxn32Gpb0",
@@ -16,7 +16,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Initialize analytics only if supported (not in SSR)
 let analytics: ReturnType<typeof getAnalytics> | null = null;
 isSupported().then((supported) => {
   if (supported) {
@@ -26,41 +25,36 @@ isSupported().then((supported) => {
 
 export { app, db, analytics };
 
-// Save wallet metadata (NOT private keys) to Firebase
-export const saveWalletMetadata = async (walletId: string, metadata: {
-  addresses: Record<string, string>;
-  createdAt: number;
-}) => {
-  try {
-    await set(ref(db, `wallets/${walletId}`), metadata);
-  } catch (error) {
-    console.error("Failed to save wallet metadata:", error);
-  }
-};
-
-// Get wallet metadata from Firebase
-export const getWalletMetadata = async (walletId: string) => {
-  try {
-    const snapshot = await get(child(ref(db), `wallets/${walletId}`));
-    return snapshot.exists() ? snapshot.val() : null;
-  } catch (error) {
-    console.error("Failed to get wallet metadata:", error);
-    return null;
-  }
-};
-
-// Save transaction record
-export const saveTransaction = async (walletId: string, tx: {
+export interface TransactionRecord {
   coin: string;
-  to: string;
+  type: "send" | "receive";
+  to?: string;
+  from?: string;
   amount: string;
   hash: string;
   timestamp: number;
-}) => {
+}
+
+// Save transaction record
+export const saveTransaction = async (walletId: string, tx: TransactionRecord) => {
   try {
     const txId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     await set(ref(db, `transactions/${walletId}/${txId}`), tx);
   } catch (error) {
     console.error("Failed to save transaction:", error);
+  }
+};
+
+// Get transactions for a wallet
+export const getTransactions = async (walletId: string): Promise<TransactionRecord[]> => {
+  try {
+    const snapshot = await get(ref(db, `transactions/${walletId}`));
+    if (!snapshot.exists()) return [];
+    const data = snapshot.val();
+    const txs: TransactionRecord[] = Object.values(data);
+    return txs.sort((a, b) => b.timestamp - a.timestamp);
+  } catch (error) {
+    console.error("Failed to get transactions:", error);
+    return [];
   }
 };

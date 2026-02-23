@@ -1,20 +1,28 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Send, Download, ArrowLeftRight, RefreshCw, LogOut, Settings, TrendingUp, TrendingDown } from "lucide-react";
+import { Send, Download, ArrowLeftRight, RefreshCw, LogOut, Settings, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
 import { SUPPORTED_COINS } from "@/lib/coins";
+import { getTransactions, type TransactionRecord } from "@/lib/firebase";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { wallet, prices, balances, refreshPrices, refreshBalances, getTotalBalance, logout } = useWallet();
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
 
   useEffect(() => {
     if (!wallet) navigate("/");
   }, [wallet, navigate]);
+
+  useEffect(() => {
+    if (wallet?.addresses?.eth) {
+      getTransactions(wallet.addresses.eth).then(setTransactions);
+    }
+  }, [wallet]);
 
   if (!wallet) return null;
 
@@ -28,6 +36,9 @@ const Dashboard = () => {
   const handleRefresh = () => {
     refreshPrices();
     refreshBalances();
+    if (wallet?.addresses?.eth) {
+      getTransactions(wallet.addresses.eth).then(setTransactions);
+    }
   };
 
   return (
@@ -90,11 +101,11 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-foreground">{coin.name}</p>
-                      <p className="text-sm text-muted-foreground">{coin.symbol}</p>
+                      <p className="text-sm text-muted-foreground">{balance.toFixed(6)} {coin.symbol}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-foreground">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="font-semibold text-foreground">${value > 0 ? value.toFixed(2) : price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     <div className={`flex items-center justify-end gap-1 text-sm ${change >= 0 ? "text-green-400" : "text-red-400"}`}>
                       {change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {Math.abs(change).toFixed(2)}%
@@ -104,6 +115,49 @@ const Dashboard = () => {
               </motion.div>
             );
           })}
+        </div>
+
+        {/* Transaction History */}
+        <div className="mt-8">
+          <h2 className="mb-4 text-lg font-semibold text-foreground">Recent Transactions</h2>
+          {transactions.length === 0 ? (
+            <GlassCard className="p-6 text-center">
+              <p className="text-muted-foreground">No transactions yet</p>
+            </GlassCard>
+          ) : (
+            <div className="space-y-2">
+              {transactions.slice(0, 20).map((tx, i) => (
+                <motion.div
+                  key={`${tx.hash}-${i}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                >
+                  <GlassCard className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${tx.type === "send" ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
+                        {tx.type === "send" ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{tx.type === "send" ? "Sent" : "Received"} {tx.coin}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {tx.to ? `To: ${tx.to.slice(0, 8)}...${tx.to.slice(-6)}` : tx.from ? `From: ${tx.from.slice(0, 8)}...${tx.from.slice(-6)}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${tx.type === "send" ? "text-red-400" : "text-green-400"}`}>
+                        {tx.type === "send" ? "-" : "+"}{tx.amount} {tx.coin}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(tx.timestamp).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
