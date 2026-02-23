@@ -22,8 +22,31 @@ export const fetchPrices = async (): Promise<PriceData> => {
     );
     
     if (!res.ok) {
+      // Fallback to CryptoCompare if CoinGecko fails
+      const symbols = SUPPORTED_COINS.map((c) => c.symbol).join(",");
+      const fallbackRes = await fetch(
+        `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${symbols}&tsyms=USD`
+      );
+      
+      if (fallbackRes.ok) {
+        const fbData = await fallbackRes.json();
+        const prices: PriceData = {};
+        for (const coin of SUPPORTED_COINS) {
+          const d = fbData.RAW?.[coin.symbol]?.USD;
+          if (d) {
+            prices[coin.id] = {
+              usd: d.PRICE ?? 0,
+              usd_24h_change: d.CHANGEPCT24HOUR ?? 0,
+            };
+          } else {
+            prices[coin.id] = { usd: 0, usd_24h_change: 0 };
+          }
+        }
+        return prices;
+      }
+      
       if (res.status === 429) {
-        console.warn("Coingecko rate limit hit, trying fallback prices");
+        console.warn("Coingecko rate limit hit, and fallback failed");
       }
       throw new Error(`Price fetch failed with status: ${res.status}`);
     }
