@@ -46,9 +46,9 @@ export const fetchPrices = async (): Promise<PriceData> => {
   } catch (error) {
     console.error("Failed to fetch prices:", error);
     return {
-      pol: { usd: 0.45, usd_24h_change: 2.1 },
+      pol: { usd: 0.25, usd_24h_change: 2.1 },
       ltc: { usd: 85, usd_24h_change: -1.0 },
-      dgb: { usd: 0.012, usd_24h_change: 3.5 },
+      dgb: { usd: 0.008, usd_24h_change: 3.5 },
     };
   }
 };

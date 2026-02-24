@@ -17,7 +17,7 @@ export const SUPPORTED_COINS: CoinConfig[] = [
     symbol: "POL",
     name: "Polygon",
     icon: "⬡",
-    coingeckoId: "matic-network",
+    coingeckoId: "polygon-ecosystem-token",
     decimals: 18,
     network: "evm",
     chainId: 137,
