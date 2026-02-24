@@ -54,7 +54,16 @@ const Dashboard = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <GlassCard className="mb-6 p-6 text-center" glow>
             <p className="text-sm text-muted-foreground">Total Balance</p>
-            <p className="text-4xl font-bold text-foreground">${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-4xl font-bold text-foreground">
+              {txLoading && ltcBalance === 0 ? (
+                <span className="animate-pulse">Loading...</span>
+              ) : (
+                `$${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              )}
+            </p>
+            <p className="mt-1 text-lg text-muted-foreground">
+              {ltcBalance.toFixed(8)} LTC
+            </p>
             <button
               onClick={copyAddress}
               className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/80"
@@ -87,11 +96,15 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="font-semibold text-foreground">Litecoin</p>
-                <p className="text-sm text-muted-foreground">{ltcBalance.toFixed(8)} LTC</p>
+                <p className="text-sm text-muted-foreground">
+                  {txLoading && ltcBalance === 0 ? <span className="animate-pulse">Loading...</span> : `${ltcBalance.toFixed(8)} LTC`}
+                </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="font-semibold text-foreground">${ltcValue > 0 ? ltcValue.toFixed(2) : ltcPrice.toFixed(2)}</p>
+              <p className="font-semibold text-foreground">
+                {ltcPrice > 0 ? `$${ltcValue > 0 ? ltcValue.toFixed(2) : ltcPrice.toFixed(2)}` : <span className="animate-pulse">...</span>}
+              </p>
               <div className={`flex items-center justify-end gap-1 text-sm ${ltcChange >= 0 ? "text-green-400" : "text-red-400"}`}>
                 {ltcChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                 {Math.abs(ltcChange).toFixed(2)}%
