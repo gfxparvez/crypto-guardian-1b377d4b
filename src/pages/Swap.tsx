@@ -15,8 +15,8 @@ const SwapPage = () => {
   const navigate = useNavigate();
   const { wallet, prices, balances } = useWallet();
   const { toast } = useToast();
-  const [fromCoin, setFromCoin] = useState("eth");
-  const [toCoin, setToCoin] = useState("btc");
+  const [fromCoin, setFromCoin] = useState("pol");
+  const [toCoin, setToCoin] = useState("ltc");
   const [amount, setAmount] = useState("");
 
   if (!wallet) { navigate("/"); return null; }

@@ -27,7 +27,7 @@ const SendPage = () => {
   const navigate = useNavigate();
   const { wallet, prices, balances } = useWallet();
   const { toast } = useToast();
-  const [coinId, setCoinId] = useState("eth");
+  const [coinId, setCoinId] = useState("pol");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
@@ -72,7 +72,7 @@ const SendPage = () => {
     setSending(true);
     try {
       const hash = await sendEvmTransaction(wallet.mnemonic, coin, recipient.trim(), amount);
-      await saveTransaction(wallet.addresses["eth"], {
+      await saveTransaction(wallet.addresses["pol"], {
         coin: coin.symbol,
         type: "send",
         to: recipient.trim(),

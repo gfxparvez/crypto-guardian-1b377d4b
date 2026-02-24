@@ -8,6 +8,8 @@ import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
 import { getCoinById } from "@/lib/coins";
 import { getTransactions, type TransactionRecord } from "@/lib/firebase";
+import { fetchPriceChart } from "@/lib/prices";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const CoinDetail = () => {
   const { coinId } = useParams<{ coinId: string }>();
@@ -15,17 +17,32 @@ const CoinDetail = () => {
   const { wallet, prices, balances } = useWallet();
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [copied, setCopied] = useState(false);
+  const [chartData, setChartData] = useState<{ time: string; price: number }[]>([]);
+  const [chartLoading, setChartLoading] = useState(true);
 
   useEffect(() => {
-    if (wallet?.addresses?.eth && coinId) {
+    if (wallet?.addresses?.pol && coinId) {
       const coin = getCoinById(coinId);
       if (coin) {
-        getTransactions(wallet.addresses.eth).then((txs) => {
+        getTransactions(wallet.addresses.pol).then((txs) => {
           setTransactions(txs.filter(t => t.coin === coin.symbol));
         });
       }
     }
   }, [wallet, coinId]);
+
+  useEffect(() => {
+    if (coinId) {
+      const coin = getCoinById(coinId);
+      if (coin) {
+        setChartLoading(true);
+        fetchPriceChart(coin.coingeckoId, 7).then((data) => {
+          setChartData(data);
+          setChartLoading(false);
+        });
+      }
+    }
+  }, [coinId]);
 
   if (!wallet) { navigate("/"); return null; }
 
@@ -94,6 +111,39 @@ const CoinDetail = () => {
                 <p className="text-xl font-bold text-foreground">${value.toFixed(2)}</p>
               </div>
             </div>
+          </GlassCard>
+
+          {/* Price Chart */}
+          <GlassCard className="p-6">
+            <h2 className="mb-4 text-sm font-semibold text-muted-foreground">7-Day Price Chart</h2>
+            {chartLoading ? (
+              <div className="flex h-[200px] items-center justify-center">
+                <p className="text-sm text-muted-foreground animate-pulse">Loading chart...</p>
+              </div>
+            ) : chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id={`gradient-${coin.id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={coin.color} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={coin.color} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickLine={false} axisLine={false} />
+                  <YAxis hide domain={["auto", "auto"]} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 4 })}`, "Price"]}
+                  />
+                  <Area type="monotone" dataKey="price" stroke={coin.color} fill={`url(#gradient-${coin.id})`} strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-[200px] items-center justify-center">
+                <p className="text-sm text-muted-foreground">Chart data unavailable</p>
+              </div>
+            )}
           </GlassCard>
 
           {/* Actions */}

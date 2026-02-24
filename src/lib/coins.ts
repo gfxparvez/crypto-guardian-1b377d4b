@@ -5,35 +5,13 @@ export interface CoinConfig {
   icon: string;
   coingeckoId: string;
   decimals: number;
-  network: "evm" | "bitcoin" | "solana" | "litecoin" | "dogecoin";
+  network: "evm" | "litecoin" | "digibyte";
   chainId?: number;
   rpcUrl?: string;
   color: string;
 }
 
 export const SUPPORTED_COINS: CoinConfig[] = [
-  {
-    id: "btc",
-    symbol: "BTC",
-    name: "Bitcoin",
-    icon: "₿",
-    coingeckoId: "bitcoin",
-    decimals: 8,
-    network: "bitcoin",
-    color: "#F7931A",
-  },
-  {
-    id: "eth",
-    symbol: "ETH",
-    name: "Ethereum",
-    icon: "Ξ",
-    coingeckoId: "ethereum",
-    decimals: 18,
-    network: "evm",
-    chainId: 1,
-    rpcUrl: "https://eth.drpc.org",
-    color: "#627EEA",
-  },
   {
     id: "pol",
     symbol: "POL",
@@ -47,16 +25,6 @@ export const SUPPORTED_COINS: CoinConfig[] = [
     color: "#8247E5",
   },
   {
-    id: "sol",
-    symbol: "SOL",
-    name: "Solana",
-    icon: "◎",
-    coingeckoId: "solana",
-    decimals: 9,
-    network: "solana",
-    color: "#9945FF",
-  },
-  {
     id: "ltc",
     symbol: "LTC",
     name: "Litecoin",
@@ -64,28 +32,17 @@ export const SUPPORTED_COINS: CoinConfig[] = [
     coingeckoId: "litecoin",
     decimals: 8,
     network: "litecoin",
-    color: "#BFBBBB",
+    color: "#345D9D",
   },
   {
-    id: "doge",
-    symbol: "DOGE",
-    name: "Dogecoin",
-    icon: "Ð",
-    coingeckoId: "dogecoin",
+    id: "dgb",
+    symbol: "DGB",
+    name: "DigiByte",
+    icon: "D",
+    coingeckoId: "digibyte",
     decimals: 8,
-    network: "dogecoin",
-    color: "#C2A633",
-  },
-  {
-    id: "usdt",
-    symbol: "USDT",
-    name: "Tether",
-    icon: "₮",
-    coingeckoId: "tether",
-    decimals: 6,
-    network: "evm",
-    chainId: 1,
-    color: "#26A17B",
+    network: "digibyte",
+    color: "#006AD2",
   },
 ];
 

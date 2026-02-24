@@ -15,7 +15,7 @@ const ReceivePage = () => {
   const navigate = useNavigate();
   const { wallet } = useWallet();
   const { toast } = useToast();
-  const [coinId, setCoinId] = useState("eth");
+  const [coinId, setCoinId] = useState("pol");
   const [copied, setCopied] = useState(false);
 
   if (!wallet) { navigate("/"); return null; }

@@ -20,15 +20,15 @@ const Dashboard = () => {
   }, [wallet, navigate]);
 
   useEffect(() => {
-    if (wallet?.addresses?.eth) {
-      getTransactions(wallet.addresses.eth).then(setTransactions);
+    if (wallet?.addresses?.pol) {
+      getTransactions(wallet.addresses.pol).then(setTransactions);
     }
   }, [wallet]);
 
   if (!wallet) return null;
 
   const totalUsd = getTotalBalance();
-  const mainAddress = wallet.addresses.eth || Object.values(wallet.addresses)[0] || "";
+  const mainAddress = wallet.addresses.pol || Object.values(wallet.addresses)[0] || "";
 
   const handleLogout = () => {
     logout();
@@ -38,8 +38,8 @@ const Dashboard = () => {
   const handleRefresh = () => {
     refreshPrices();
     refreshBalances();
-    if (wallet?.addresses?.eth) {
-      getTransactions(wallet.addresses.eth).then(setTransactions);
+    if (wallet?.addresses?.pol) {
+      getTransactions(wallet.addresses.pol).then(setTransactions);
     }
   };
 
@@ -153,7 +153,7 @@ const Dashboard = () => {
                 >
                   <GlassCard 
                     className="flex cursor-pointer items-center justify-between p-4 transition-all hover:bg-muted/10"
-                    onClick={() => navigate(`/coin/${SUPPORTED_COINS.find(c => c.symbol === tx.coin)?.id || 'eth'}`)}
+                    onClick={() => navigate(`/coin/${SUPPORTED_COINS.find(c => c.symbol === tx.coin)?.id || 'pol'}`)}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`flex h-8 w-8 items-center justify-center rounded-full ${tx.type === "send" ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
