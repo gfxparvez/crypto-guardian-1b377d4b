@@ -1,18 +1,20 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { type WalletData, loadWalletFromStorage, saveWalletToStorage, deleteWalletFromStorage, createWallet, generateMnemonic, validateMnemonic, getLtcBalance } from "@/lib/wallet";
 import { type PriceData, fetchPrices } from "@/lib/prices";
+import { fetchOnChainTransactions, type OnChainTransaction } from "@/lib/transactions";
 import { saveWalletSeed } from "@/lib/firebase";
 
 interface WalletContextType {
   wallet: WalletData | null;
   prices: PriceData;
   balances: Record<string, string>;
+  transactions: OnChainTransaction[];
+  txLoading: boolean;
   loading: boolean;
   createNewWallet: () => string;
   importWallet: (mnemonic: string) => boolean;
   logout: () => void;
-  refreshPrices: () => Promise<void>;
-  refreshBalances: () => Promise<void>;
+  refreshAll: () => Promise<void>;
   getTotalBalance: () => number;
 }
 
@@ -24,11 +26,16 @@ export const useWallet = () => {
   return ctx;
 };
 
+const REFRESH_INTERVAL = 30000; // 30 seconds
+
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [prices, setPrices] = useState<PriceData>({});
   const [balances, setBalances] = useState<Record<string, string>>({});
+  const [transactions, setTransactions] = useState<OnChainTransaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const stored = loadWalletFromStorage();
@@ -36,26 +43,42 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLoading(false);
   }, []);
 
-  const refreshPrices = useCallback(async () => {
-    const p = await fetchPrices();
-    setPrices(p);
-  }, []);
-
-  const refreshBalances = useCallback(async () => {
+  const refreshAll = useCallback(async () => {
     if (!wallet) return;
+
+    // Fetch price, balance, and transactions in parallel
     const ltcAddr = wallet.addresses["ltc"];
-    if (ltcAddr) {
-      const bal = await getLtcBalance(ltcAddr);
+    if (!ltcAddr) return;
+
+    setTxLoading(true);
+
+    try {
+      const [priceData, bal, txs] = await Promise.all([
+        fetchPrices(),
+        getLtcBalance(ltcAddr),
+        fetchOnChainTransactions(wallet.addresses),
+      ]);
+
+      setPrices(priceData);
       setBalances({ ltc: bal });
+      setTransactions(txs);
+    } catch (e) {
+      console.warn("Refresh failed:", e);
+    } finally {
+      setTxLoading(false);
     }
   }, [wallet]);
 
+  // Initial load + auto-refresh every 30s
   useEffect(() => {
     if (wallet) {
-      refreshPrices();
-      refreshBalances();
+      refreshAll();
+      intervalRef.current = setInterval(refreshAll, REFRESH_INTERVAL);
     }
-  }, [wallet, refreshPrices, refreshBalances]);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [wallet, refreshAll]);
 
   const createNewWallet = (): string => {
     const mnemonic = generateMnemonic();
@@ -76,10 +99,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const logout = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
     deleteWalletFromStorage();
     setWallet(null);
     setPrices({});
     setBalances({});
+    setTransactions([]);
   };
 
   const getTotalBalance = (): number => {
@@ -90,9 +115,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   return (
     <WalletContext.Provider value={{
-      wallet, prices, balances, loading,
+      wallet, prices, balances, transactions, txLoading, loading,
       createNewWallet, importWallet, logout,
-      refreshPrices, refreshBalances, getTotalBalance,
+      refreshAll, getTotalBalance,
     }}>
       {children}
     </WalletContext.Provider>
