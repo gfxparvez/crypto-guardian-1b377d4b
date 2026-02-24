@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Send, Download, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Copy, Check } from "lucide-react";
@@ -6,13 +6,11 @@ import { Button } from "@/components/ui/button";
 import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
-import { getCoinById } from "@/lib/coins";
 import { fetchOnChainTransactions, type OnChainTransaction } from "@/lib/transactions";
 import { fetchPriceChart } from "@/lib/prices";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const CoinDetail = () => {
-  const { coinId } = useParams<{ coinId: string }>();
   const navigate = useNavigate();
   const { wallet, prices, balances } = useWallet();
   const [transactions, setTransactions] = useState<OnChainTransaction[]>([]);
@@ -21,39 +19,26 @@ const CoinDetail = () => {
   const [chartLoading, setChartLoading] = useState(true);
 
   useEffect(() => {
-    if (wallet?.addresses && coinId) {
-      const coin = getCoinById(coinId);
-      if (coin) {
-        fetchOnChainTransactions(wallet.addresses).then((txs) => {
-          setTransactions(txs.filter(t => t.coin === coin.symbol));
-        });
-      }
+    if (wallet?.addresses) {
+      fetchOnChainTransactions(wallet.addresses).then(setTransactions);
     }
-  }, [wallet, coinId]);
+  }, [wallet]);
 
   useEffect(() => {
-    if (coinId) {
-      const coin = getCoinById(coinId);
-      if (coin) {
-        setChartLoading(true);
-        fetchPriceChart(coin.coingeckoId, 7).then((data) => {
-          setChartData(data);
-          setChartLoading(false);
-        });
-      }
-    }
-  }, [coinId]);
+    setChartLoading(true);
+    fetchPriceChart("litecoin", 7).then((data) => {
+      setChartData(data);
+      setChartLoading(false);
+    });
+  }, []);
 
   if (!wallet) { navigate("/"); return null; }
 
-  const coin = getCoinById(coinId || "");
-  if (!coin) { navigate("/dashboard"); return null; }
-
-  const price = prices[coin.id]?.usd || 0;
-  const change = prices[coin.id]?.usd_24h_change || 0;
-  const balance = parseFloat(balances[coin.id] || "0");
+  const price = prices["ltc"]?.usd || 0;
+  const change = prices["ltc"]?.usd_24h_change || 0;
+  const balance = parseFloat(balances["ltc"] || "0");
   const value = balance * price;
-  const address = wallet.addresses[coin.id] || "";
+  const address = wallet.addresses["ltc"] || "";
 
   const copyAddress = () => {
     navigator.clipboard.writeText(address);
@@ -70,30 +55,25 @@ const CoinDetail = () => {
         </Button>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          {/* Coin Header */}
           <GlassCard className="p-6 text-center" glow>
-            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full text-3xl font-bold" style={{ backgroundColor: coin.color + "20", color: coin.color }}>
-              {coin.icon}
+            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full text-3xl font-bold" style={{ backgroundColor: "#345D9D20", color: "#345D9D" }}>
+              Ł
             </div>
-            <h1 className="text-2xl font-bold text-foreground">{coin.name}</h1>
-            <p className="text-muted-foreground">{coin.symbol}</p>
+            <h1 className="text-2xl font-bold text-foreground">Litecoin</h1>
+            <p className="text-muted-foreground">LTC</p>
             {address && (
-              <button
-                onClick={copyAddress}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/80"
-              >
+              <button onClick={copyAddress} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/80">
                 {address.slice(0, 8)}...{address.slice(-6)}
                 {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
               </button>
             )}
           </GlassCard>
 
-          {/* Price Info */}
           <GlassCard className="p-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Current Price</p>
-                <p className="text-xl font-bold text-foreground">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-xl font-bold text-foreground">${price.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">24h Change</p>
@@ -104,7 +84,7 @@ const CoinDetail = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Balance</p>
-                <p className="text-xl font-bold text-foreground">{balance.toFixed(6)} {coin.symbol}</p>
+                <p className="text-xl font-bold text-foreground">{balance.toFixed(8)} LTC</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Value</p>
@@ -113,7 +93,6 @@ const CoinDetail = () => {
             </div>
           </GlassCard>
 
-          {/* Price Chart */}
           <GlassCard className="p-6">
             <h2 className="mb-4 text-sm font-semibold text-muted-foreground">7-Day Price Chart</h2>
             {chartLoading ? (
@@ -124,9 +103,9 @@ const CoinDetail = () => {
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id={`gradient-${coin.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={coin.color} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={coin.color} stopOpacity={0} />
+                    <linearGradient id="gradient-ltc" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#345D9D" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#345D9D" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickLine={false} axisLine={false} />
@@ -134,9 +113,9 @@ const CoinDetail = () => {
                   <Tooltip
                     contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
                     labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                    formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 4 })}`, "Price"]}
+                    formatter={(value: number) => [`$${value.toFixed(4)}`, "Price"]}
                   />
-                  <Area type="monotone" dataKey="price" stroke={coin.color} fill={`url(#gradient-${coin.id})`} strokeWidth={2} />
+                  <Area type="monotone" dataKey="price" stroke="#345D9D" fill="url(#gradient-ltc)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -146,32 +125,25 @@ const CoinDetail = () => {
             )}
           </GlassCard>
 
-          {/* Actions */}
           <div className="grid grid-cols-2 gap-3">
             <Button className="bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20" onClick={() => navigate("/send")}>
-              <Send className="mr-2 h-4 w-4" /> Send {coin.symbol}
+              <Send className="mr-2 h-4 w-4" /> Send LTC
             </Button>
             <Button className="bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20" onClick={() => navigate("/receive")}>
-              <Download className="mr-2 h-4 w-4" /> Receive {coin.symbol}
+              <Download className="mr-2 h-4 w-4" /> Receive LTC
             </Button>
           </div>
 
-          {/* Transaction History for this coin */}
           <div className="mt-8">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Recent {coin.symbol} Transactions</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">Recent LTC Transactions</h2>
             {transactions.length === 0 ? (
               <GlassCard className="p-6 text-center">
-                <p className="text-muted-foreground">No transactions for {coin.symbol} yet</p>
+                <p className="text-muted-foreground">No transactions yet</p>
               </GlassCard>
             ) : (
               <div className="space-y-2">
                 {transactions.map((tx, i) => (
-                  <motion.div
-                    key={`${tx.hash}-${i}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                  >
+                  <motion.div key={`${tx.hash}-${i}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                     <GlassCard className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-3">
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full ${tx.type === "send" ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
@@ -180,17 +152,15 @@ const CoinDetail = () => {
                         <div>
                           <p className="text-sm font-medium text-foreground">{tx.type === "send" ? "Sent" : "Received"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {tx.to ? `To: ${tx.to.slice(0, 8)}...${tx.to.slice(-6)}` : tx.from ? `From: ${tx.from.slice(0, 8)}...${tx.from.slice(-6)}` : ""}
+                            {tx.type === "send" ? (tx.to ? `To: ${tx.to.slice(0, 8)}...${tx.to.slice(-6)}` : "") : (tx.from ? `From: ${tx.from.slice(0, 8)}...${tx.from.slice(-6)}` : "")}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className={`text-sm font-semibold ${tx.type === "send" ? "text-red-400" : "text-green-400"}`}>
-                          {tx.type === "send" ? "-" : "+"}{tx.amount} {tx.coin}
+                          {tx.type === "send" ? "-" : "+"}{tx.amount} LTC
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(tx.timestamp).toLocaleDateString()}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{new Date(tx.timestamp).toLocaleDateString()}</p>
                       </div>
                     </GlassCard>
                   </motion.div>

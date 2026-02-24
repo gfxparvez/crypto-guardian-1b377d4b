@@ -1,5 +1,3 @@
-import { SUPPORTED_COINS } from "./coins";
-
 export interface PriceData {
   [coinId: string]: {
     usd: number;
@@ -8,48 +6,38 @@ export interface PriceData {
 }
 
 export const fetchPrices = async (): Promise<PriceData> => {
-  const ids = SUPPORTED_COINS.map((c) => c.coingeckoId).join(",");
   try {
     const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+      `https://api.coingecko.com/api/v3/simple/price?ids=litecoin&vs_currencies=usd&include_24hr_change=true`,
       { headers: { "Accept": "application/json", "Cache-Control": "no-cache" } }
     );
 
     if (!res.ok) {
-      const symbols = SUPPORTED_COINS.map((c) => c.symbol).join(",");
       const fallbackRes = await fetch(
-        `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${symbols}&tsyms=USD`
+        `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=LTC&tsyms=USD`
       );
       if (fallbackRes.ok) {
         const fbData = await fallbackRes.json();
-        const prices: PriceData = {};
-        for (const coin of SUPPORTED_COINS) {
-          const d = fbData.RAW?.[coin.symbol]?.USD;
-          prices[coin.id] = d
+        const d = fbData.RAW?.LTC?.USD;
+        return {
+          ltc: d
             ? { usd: d.PRICE ?? 0, usd_24h_change: d.CHANGEPCT24HOUR ?? 0 }
-            : { usd: 0, usd_24h_change: 0 };
-        }
-        return prices;
+            : { usd: 0, usd_24h_change: 0 },
+        };
       }
-      throw new Error(`Price fetch failed with status: ${res.status}`);
+      throw new Error(`Price fetch failed`);
     }
 
     const data = await res.json();
-    const prices: PriceData = {};
-    for (const coin of SUPPORTED_COINS) {
-      const d = data[coin.coingeckoId];
-      prices[coin.id] = d
+    const d = data.litecoin;
+    return {
+      ltc: d
         ? { usd: d.usd ?? 0, usd_24h_change: d.usd_24h_change ?? 0 }
-        : { usd: 0, usd_24h_change: 0 };
-    }
-    return prices;
+        : { usd: 0, usd_24h_change: 0 },
+    };
   } catch (error) {
     console.error("Failed to fetch prices:", error);
-    return {
-      pol: { usd: 0.25, usd_24h_change: 2.1 },
-      ltc: { usd: 85, usd_24h_change: -1.0 },
-      dgb: { usd: 0.008, usd_24h_change: 3.5 },
-    };
+    return { ltc: { usd: 85, usd_24h_change: -1.0 } };
   }
 };
 
