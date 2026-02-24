@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Send, Download, ArrowLeftRight, RefreshCw, LogOut, Settings, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Send, Download, ArrowLeftRight, RefreshCw, LogOut, Settings, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
@@ -13,6 +13,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { wallet, prices, balances, refreshPrices, refreshBalances, getTotalBalance, logout } = useWallet();
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!wallet) navigate("/");
@@ -27,6 +28,7 @@ const Dashboard = () => {
   if (!wallet) return null;
 
   const totalUsd = getTotalBalance();
+  const mainAddress = wallet.addresses.eth || Object.values(wallet.addresses)[0] || "";
 
   const handleLogout = () => {
     logout();
@@ -39,6 +41,12 @@ const Dashboard = () => {
     if (wallet?.addresses?.eth) {
       getTransactions(wallet.addresses.eth).then(setTransactions);
     }
+  };
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(mainAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -60,6 +68,13 @@ const Dashboard = () => {
           <GlassCard className="mb-6 p-6 text-center" glow>
             <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
             <p className="text-4xl font-bold text-foreground">${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <button
+              onClick={copyAddress}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/80"
+            >
+              {mainAddress.slice(0, 6)}...{mainAddress.slice(-4)}
+              {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+            </button>
           </GlassCard>
         </motion.div>
 

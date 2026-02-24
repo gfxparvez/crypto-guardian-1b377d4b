@@ -14,7 +14,7 @@ const FloatingBackground = () => {
       {symbols.map((symbol, i) => (
         <motion.div
           key={i}
-          className="absolute text-primary/10 font-bold select-none"
+          className="absolute text-primary/5 font-bold select-none"
           style={{
             fontSize: `${2 + Math.random() * 3}rem`,
             top: `${10 + (i * 12) % 80}%`,

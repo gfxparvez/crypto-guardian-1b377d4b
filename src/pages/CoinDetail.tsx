@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Send, Download, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { ArrowLeft, Send, Download, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
@@ -14,6 +14,7 @@ const CoinDetail = () => {
   const navigate = useNavigate();
   const { wallet, prices, balances } = useWallet();
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (wallet?.addresses?.eth && coinId) {
@@ -35,6 +36,13 @@ const CoinDetail = () => {
   const change = prices[coin.id]?.usd_24h_change || 0;
   const balance = parseFloat(balances[coin.id] || "0");
   const value = balance * price;
+  const address = wallet.addresses[coin.id] || "";
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="relative min-h-screen bg-background">
@@ -52,6 +60,15 @@ const CoinDetail = () => {
             </div>
             <h1 className="text-2xl font-bold text-foreground">{coin.name}</h1>
             <p className="text-muted-foreground">{coin.symbol}</p>
+            {address && (
+              <button
+                onClick={copyAddress}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/80"
+              >
+                {address.slice(0, 8)}...{address.slice(-6)}
+                {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+              </button>
+            )}
           </GlassCard>
 
           {/* Price Info */}
