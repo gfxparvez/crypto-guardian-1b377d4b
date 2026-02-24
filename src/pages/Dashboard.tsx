@@ -9,8 +9,10 @@ import { useWallet } from "@/contexts/WalletContext";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { wallet, prices, balances, transactions, txLoading, refreshAll, getTotalBalance, logout } = useWallet();
+  const { wallet, prices, balances, transactions, txLoading, refreshAll, getTotalBalance, logout, syncMeta } = useWallet();
   const [copied, setCopied] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
 
   useEffect(() => {
     if (!wallet) navigate("/");
@@ -27,8 +29,10 @@ const Dashboard = () => {
 
   const handleLogout = () => { logout(); navigate("/"); };
 
-  const handleRefresh = () => {
-    refreshAll();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshAll();
+    setRefreshing(false);
   };
 
   const copyAddress = () => {
@@ -44,7 +48,9 @@ const Dashboard = () => {
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gradient">Stellar Vault</h1>
           <div className="flex gap-2">
-            <Button variant="ghost" size="icon" onClick={handleRefresh}><RefreshCw className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing}>
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}><Settings className="h-4 w-4" /></Button>
             <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="h-4 w-4" /></Button>
           </div>
@@ -64,6 +70,13 @@ const Dashboard = () => {
             <p className="mt-1 text-lg text-muted-foreground">
               {ltcBalance.toFixed(8)} LTC
             </p>
+            {syncMeta.syncError && (
+              <p className="mt-1 text-xs text-yellow-400">
+                {syncMeta.lastUpdated
+                  ? `⚠ Showing cached data • Last synced ${new Date(syncMeta.lastUpdated).toLocaleTimeString()}`
+                  : "⚠ Couldn't reach blockchain API"}
+              </p>
+            )}
             <button
               onClick={copyAddress}
               className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/80"
