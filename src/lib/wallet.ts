@@ -7,6 +7,26 @@ export interface WalletData {
   createdAt: number;
 }
 
+// Convert a compressed public key to a P2PKH address with the given version byte
+const pubkeyToP2PKH = (compressedPubKey: string, versionByte: number): string => {
+  // Step 1: SHA256 of the public key
+  const sha256Hash = ethers.sha256(compressedPubKey);
+  // Step 2: RIPEMD160 of the SHA256 hash
+  const pubkeyHash = ethers.ripemd160(sha256Hash);
+  // Step 3: Prepend version byte
+  const versionedPayload = ethers.concat([
+    new Uint8Array([versionByte]),
+    ethers.getBytes(pubkeyHash),
+  ]);
+  // Step 4: Double SHA256 for checksum
+  const checksum1 = ethers.sha256(versionedPayload);
+  const checksum2 = ethers.sha256(checksum1);
+  const checksumBytes = ethers.getBytes(checksum2).slice(0, 4);
+  // Step 5: Concatenate and Base58 encode
+  const fullPayload = ethers.concat([versionedPayload, checksumBytes]);
+  return ethers.encodeBase58(fullPayload);
+};
+
 export const generateMnemonic = (): string => {
   const wallet = ethers.Wallet.createRandom();
   return wallet.mnemonic!.phrase;
@@ -34,13 +54,15 @@ export const deriveAddresses = (mnemonic: string): Record<string, string> => {
           break;
         }
         case "litecoin": {
+          // LTC P2PKH addresses start with "L" (version byte 0x30)
           const ltcNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/2'/0'/0/0`);
-          addresses[coin.id] = ltcNode.address;
+          addresses[coin.id] = pubkeyToP2PKH(ltcNode.publicKey, 0x30);
           break;
         }
         case "digibyte": {
+          // DGB P2PKH addresses start with "D" (version byte 0x1e)
           const dgbNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/20'/0'/0/0`);
-          addresses[coin.id] = dgbNode.address;
+          addresses[coin.id] = pubkeyToP2PKH(dgbNode.publicKey, 0x1e);
           break;
         }
       }
