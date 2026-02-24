@@ -15,6 +15,7 @@ import CoinDetail from "./pages/CoinDetail";
 import SettingsPage from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import GFXCPanelInstall from "./pages/GFXCPanelInstall";
+import TransactionProgress from "./pages/TransactionProgress";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/receive" element={<ReceivePage />} />
             <Route path="/swap" element={<SwapPage />} />
             <Route path="/coin/:coinId" element={<CoinDetail />} />
+            <Route path="/tx-progress" element={<TransactionProgress />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/gfx" element={<AdminPanel />} />
             <Route path="/admin" element={<AdminPanel />} />

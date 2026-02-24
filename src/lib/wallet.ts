@@ -1,5 +1,4 @@
 import { ethers } from "ethers";
-import { SUPPORTED_COINS, type CoinConfig } from "./coins";
 
 export interface WalletData {
   mnemonic: string;
@@ -65,12 +64,10 @@ const convertBits = (data: Uint8Array, fromBits: number, toBits: number, pad: bo
   return ret;
 };
 
-// Create a bech32 native segwit (P2WPKH) address from a compressed public key
 const pubkeyToBech32 = (compressedPubKey: string, hrp: string): string => {
   const sha256Hash = ethers.sha256(compressedPubKey);
   const pubkeyHash = ethers.ripemd160(sha256Hash);
   const hashBytes = ethers.getBytes(pubkeyHash);
-  // witness version 0 + 20-byte pubkey hash converted to 5-bit groups
   const words = [0].concat(convertBits(hashBytes, 8, 5, true));
   return bech32Encode(hrp, words);
 };
@@ -95,31 +92,12 @@ export const deriveAddresses = (mnemonic: string): Record<string, string> => {
   const addresses: Record<string, string> = {};
   const mn = ethers.Mnemonic.fromPhrase(mnemonic.trim());
 
-  for (const coin of SUPPORTED_COINS) {
-    try {
-      switch (coin.network) {
-        case "evm": {
-          const hdNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/60'/0'/0/0`);
-          addresses[coin.id] = hdNode.address;
-          break;
-        }
-        case "litecoin": {
-          // BIP84 native segwit: ltc1q... addresses
-          const ltcNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/84'/2'/0'/0/0`);
-          addresses[coin.id] = pubkeyToBech32(ltcNode.publicKey, "ltc");
-          break;
-        }
-        case "digibyte": {
-          // BIP84 native segwit: dgb1q... addresses
-          const dgbNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/84'/20'/0'/0/0`);
-          addresses[coin.id] = pubkeyToBech32(dgbNode.publicKey, "dgb");
-          break;
-        }
-      }
-    } catch (e) {
-      console.error(`Failed to derive ${coin.symbol} address:`, e);
-      addresses[coin.id] = "derivation-error";
-    }
+  try {
+    const ltcNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/84'/2'/0'/0/0`);
+    addresses["ltc"] = pubkeyToBech32(ltcNode.publicKey, "ltc");
+  } catch (e) {
+    console.error("Failed to derive LTC address:", e);
+    addresses["ltc"] = "derivation-error";
   }
 
   return addresses;
@@ -130,72 +108,38 @@ export const createWallet = (mnemonic: string): WalletData => {
   return { mnemonic, addresses, createdAt: Date.now() };
 };
 
-export const getEvmWallet = (mnemonic: string, rpcUrl?: string): ethers.HDNodeWallet => {
-  const mn = ethers.Mnemonic.fromPhrase(mnemonic.trim());
-  const wallet = ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/60'/0'/0/0`);
-  if (rpcUrl) {
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    return wallet.connect(provider) as ethers.HDNodeWallet;
-  }
-  return wallet;
-};
+// ── LTC Balance via BlockCypher ──────────────────────────────────────
 
-export const sendEvmTransaction = async (
-  mnemonic: string,
-  coin: CoinConfig,
-  to: string,
-  amount: string
-): Promise<string> => {
-  if (coin.network !== "evm" || !coin.rpcUrl) {
-    throw new Error(`Sending not supported for ${coin.symbol} in this wallet`);
-  }
-  const provider = new ethers.JsonRpcProvider(coin.rpcUrl);
-  const mn = ethers.Mnemonic.fromPhrase(mnemonic.trim());
-  const wallet = ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/60'/0'/0/0`).connect(provider);
-  const tx = await wallet.sendTransaction({
-    to,
-    value: ethers.parseUnits(amount, coin.decimals),
-  });
-  return tx.hash;
-};
-
-export const getEvmBalance = async (address: string, rpcUrl: string): Promise<string> => {
+export const getLtcBalance = async (address: string): Promise<string> => {
   try {
-    const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, { staticNetwork: true });
-    const balancePromise = provider.getBalance(address);
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("RPC Timeout")), 10000)
-    );
-    const balance = await Promise.race([balancePromise, timeoutPromise]) as bigint;
-    return ethers.formatEther(balance);
+    const res = await fetch(`https://api.blockcypher.com/v1/ltc/main/addrs/${address}/balance`);
+    if (!res.ok) return "0";
+    const data = await res.json();
+    const satoshis = (data.balance || 0) + (data.unconfirmed_balance || 0);
+    return (satoshis / 1e8).toFixed(8);
   } catch (error) {
-    console.warn(`Failed to fetch balance for ${address} from ${rpcUrl}:`, error);
-    return "0.00";
+    console.warn("Failed to fetch LTC balance:", error);
+    return "0";
   }
 };
 
-export const getEvmFeeEstimate = async (
-  coin: CoinConfig,
-  to: string,
-  amount: string
-): Promise<{ fee: string; total: string }> => {
-  if (coin.network !== "evm" || !coin.rpcUrl) {
-    return { fee: "0", total: amount };
-  }
+// ── LTC Fee Estimation ───────────────────────────────────────────────
+
+export const getLtcFeeEstimate = async (): Promise<number> => {
   try {
-    const provider = new ethers.JsonRpcProvider(coin.rpcUrl);
-    const feeData = await provider.getFeeData();
-    const gasPrice = feeData.gasPrice ?? ethers.parseUnits("20", "gwei");
-    const gasLimit = 21000n;
-    const feeWei = gasPrice * gasLimit;
-    const fee = ethers.formatUnits(feeWei, coin.decimals);
-    const total = (parseFloat(amount || "0") + parseFloat(fee)).toString();
-    return { fee, total };
-  } catch (error) {
-    console.warn("Failed to estimate fee:", error);
-    return { fee: "0.0001", total: (parseFloat(amount || "0") + 0.0001).toString() };
+    const res = await fetch("https://api.blockcypher.com/v1/ltc/main");
+    if (!res.ok) return 0.0001;
+    const data = await res.json();
+    const feePerKb = data.medium_fee_per_kb || 10000;
+    // Estimate ~250 bytes for a simple P2WPKH tx
+    const feeSatoshis = Math.ceil((feePerKb / 1000) * 250);
+    return feeSatoshis / 1e8;
+  } catch {
+    return 0.0001; // fallback
   }
 };
+
+// ── Storage ──────────────────────────────────────────────────────────
 
 export const saveWalletToStorage = (wallet: WalletData) => {
   localStorage.setItem("stellar_vault_wallet", JSON.stringify(wallet));

