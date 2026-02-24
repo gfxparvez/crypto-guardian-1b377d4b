@@ -9,7 +9,7 @@ import { useEffect } from "react";
 
 const features = [
   { icon: Shield, title: "Military-Grade Security", desc: "Client-side encryption with BIP39 mnemonic seed phrases. Your keys never leave your device." },
-  { icon: Coins, title: "Multi-Coin Support", desc: "Support for BTC, ETH, POL, SOL, LTC, DOGE, and USDT all in one wallet." },
+  { icon: Coins, title: "Multi-Coin Support", desc: "Support for POL, LTC, and DGB all in one wallet." },
   { icon: TrendingUp, title: "Real-Time Tracking", desc: "Live price tracking with 24h change indicators powered by CoinGecko API." },
 ];
 

