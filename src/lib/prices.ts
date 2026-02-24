@@ -72,7 +72,7 @@ export const fetchPrices = async (): Promise<PriceData> => {
     const fallback: PriceData = {
       btc: { usd: 62000, usd_24h_change: 1.2 },
       eth: { usd: 3400, usd_24h_change: -0.5 },
-      pol: { usd: 0.55, usd_24h_change: 2.1 },
+      pol: { usd: 0.45, usd_24h_change: 2.1 },
       sol: { usd: 145, usd_24h_change: 4.5 },
       ltc: { usd: 85, usd_24h_change: -1.0 },
       doge: { usd: 0.15, usd_24h_change: 0.8 },
