@@ -6,28 +6,15 @@ import { Button } from "@/components/ui/button";
 import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
-import { fetchOnChainTransactions, type OnChainTransaction } from "@/lib/transactions";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { wallet, prices, balances, refreshPrices, refreshBalances, getTotalBalance, logout } = useWallet();
-  const [transactions, setTransactions] = useState<OnChainTransaction[]>([]);
-  const [txLoading, setTxLoading] = useState(false);
+  const { wallet, prices, balances, transactions, txLoading, refreshAll, getTotalBalance, logout } = useWallet();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!wallet) navigate("/");
   }, [wallet, navigate]);
-
-  useEffect(() => {
-    if (wallet?.addresses) {
-      setTxLoading(true);
-      fetchOnChainTransactions(wallet.addresses).then((txs) => {
-        setTransactions(txs);
-        setTxLoading(false);
-      });
-    }
-  }, [wallet]);
 
   if (!wallet) return null;
 
@@ -41,15 +28,7 @@ const Dashboard = () => {
   const handleLogout = () => { logout(); navigate("/"); };
 
   const handleRefresh = () => {
-    refreshPrices();
-    refreshBalances();
-    if (wallet?.addresses) {
-      setTxLoading(true);
-      fetchOnChainTransactions(wallet.addresses).then((txs) => {
-        setTransactions(txs);
-        setTxLoading(false);
-      });
-    }
+    refreshAll();
   };
 
   const copyAddress = () => {
