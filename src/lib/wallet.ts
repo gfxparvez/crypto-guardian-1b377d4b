@@ -7,25 +7,75 @@ export interface WalletData {
   createdAt: number;
 }
 
-// Convert a compressed public key to a P2PKH address with the given version byte
-const pubkeyToP2PKH = (compressedPubKey: string, versionByte: number): string => {
-  // Step 1: SHA256 of the public key
-  const sha256Hash = ethers.sha256(compressedPubKey);
-  // Step 2: RIPEMD160 of the SHA256 hash
-  const pubkeyHash = ethers.ripemd160(sha256Hash);
-  // Step 3: Prepend version byte
-  const versionedPayload = ethers.concat([
-    new Uint8Array([versionByte]),
-    ethers.getBytes(pubkeyHash),
-  ]);
-  // Step 4: Double SHA256 for checksum
-  const checksum1 = ethers.sha256(versionedPayload);
-  const checksum2 = ethers.sha256(checksum1);
-  const checksumBytes = ethers.getBytes(checksum2).slice(0, 4);
-  // Step 5: Concatenate and Base58 encode
-  const fullPayload = ethers.concat([versionedPayload, checksumBytes]);
-  return ethers.encodeBase58(fullPayload);
+// ── Bech32 encoding ──────────────────────────────────────────────────
+const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+
+const bech32Polymod = (values: number[]): number => {
+  const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let chk = 1;
+  for (const v of values) {
+    const b = chk >> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ v;
+    for (let i = 0; i < 5; i++) {
+      if ((b >> i) & 1) chk ^= GEN[i];
+    }
+  }
+  return chk;
 };
+
+const bech32HrpExpand = (hrp: string): number[] => {
+  const ret: number[] = [];
+  for (let i = 0; i < hrp.length; i++) ret.push(hrp.charCodeAt(i) >> 5);
+  ret.push(0);
+  for (let i = 0; i < hrp.length; i++) ret.push(hrp.charCodeAt(i) & 31);
+  return ret;
+};
+
+const bech32CreateChecksum = (hrp: string, data: number[]): number[] => {
+  const values = bech32HrpExpand(hrp).concat(data).concat([0, 0, 0, 0, 0, 0]);
+  const polymod = bech32Polymod(values) ^ 1;
+  const ret: number[] = [];
+  for (let i = 0; i < 6; i++) ret.push((polymod >> (5 * (5 - i))) & 31);
+  return ret;
+};
+
+const bech32Encode = (hrp: string, data: number[]): string => {
+  const combined = data.concat(bech32CreateChecksum(hrp, data));
+  let ret = hrp + "1";
+  for (const d of combined) ret += CHARSET[d];
+  return ret;
+};
+
+const convertBits = (data: Uint8Array, fromBits: number, toBits: number, pad: boolean): number[] => {
+  let acc = 0;
+  let bits = 0;
+  const ret: number[] = [];
+  const maxv = (1 << toBits) - 1;
+  for (const value of data) {
+    acc = (acc << fromBits) | value;
+    bits += fromBits;
+    while (bits >= toBits) {
+      bits -= toBits;
+      ret.push((acc >> bits) & maxv);
+    }
+  }
+  if (pad) {
+    if (bits > 0) ret.push((acc << (toBits - bits)) & maxv);
+  }
+  return ret;
+};
+
+// Create a bech32 native segwit (P2WPKH) address from a compressed public key
+const pubkeyToBech32 = (compressedPubKey: string, hrp: string): string => {
+  const sha256Hash = ethers.sha256(compressedPubKey);
+  const pubkeyHash = ethers.ripemd160(sha256Hash);
+  const hashBytes = ethers.getBytes(pubkeyHash);
+  // witness version 0 + 20-byte pubkey hash converted to 5-bit groups
+  const words = [0].concat(convertBits(hashBytes, 8, 5, true));
+  return bech32Encode(hrp, words);
+};
+
+// ── Wallet functions ─────────────────────────────────────────────────
 
 export const generateMnemonic = (): string => {
   const wallet = ethers.Wallet.createRandom();
@@ -54,15 +104,15 @@ export const deriveAddresses = (mnemonic: string): Record<string, string> => {
           break;
         }
         case "litecoin": {
-          // LTC P2PKH addresses start with "L" (version byte 0x30)
-          const ltcNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/2'/0'/0/0`);
-          addresses[coin.id] = pubkeyToP2PKH(ltcNode.publicKey, 0x30);
+          // BIP84 native segwit: ltc1q... addresses
+          const ltcNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/84'/2'/0'/0/0`);
+          addresses[coin.id] = pubkeyToBech32(ltcNode.publicKey, "ltc");
           break;
         }
         case "digibyte": {
-          // DGB P2PKH addresses start with "D" (version byte 0x1e)
-          const dgbNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/20'/0'/0/0`);
-          addresses[coin.id] = pubkeyToP2PKH(dgbNode.publicKey, 0x1e);
+          // BIP84 native segwit: dgb1q... addresses
+          const dgbNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/84'/20'/0'/0/0`);
+          addresses[coin.id] = pubkeyToBech32(dgbNode.publicKey, "dgb");
           break;
         }
       }
