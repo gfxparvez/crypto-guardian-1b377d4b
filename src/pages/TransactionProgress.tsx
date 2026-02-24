@@ -38,9 +38,13 @@ const TransactionProgress = () => {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [state]);
 
-  // Poll for confirmation
+  // Poll for confirmation (real tx hash)
   useEffect(() => {
-    if (!state?.txHash || confirmed) return;
+    if (!state?.txHash || confirmed || state.txHash.startsWith("pending_")) return;
+    
+    // Move to step 2 quickly since tx is already broadcast
+    const t3 = setTimeout(() => setCurrentStep(2), 1500);
+
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`https://api.blockcypher.com/v1/ltc/main/txs/${state.txHash}`);
@@ -54,7 +58,7 @@ const TransactionProgress = () => {
         }
       } catch { /* ignore */ }
     }, 10000);
-    return () => clearInterval(interval);
+    return () => { clearTimeout(t3); clearInterval(interval); };
   }, [state?.txHash, confirmed]);
 
   if (!state) {
