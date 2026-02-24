@@ -108,35 +108,21 @@ export const createWallet = (mnemonic: string): WalletData => {
   return { mnemonic, addresses, createdAt: Date.now() };
 };
 
-// ── LTC Balance via BlockCypher ──────────────────────────────────────
+// ── LTC Balance & Fee - delegated to ltcApi with multi-provider fallback ──
+
+import { fetchLtcBalance, fetchLtcFee } from "./ltcApi";
 
 export const getLtcBalance = async (address: string): Promise<string> => {
-  try {
-    const res = await fetch(`https://api.blockcypher.com/v1/ltc/main/addrs/${address}/balance`);
-    if (!res.ok) return "0";
-    const data = await res.json();
-    const satoshis = (data.balance || 0) + (data.unconfirmed_balance || 0);
-    return (satoshis / 1e8).toFixed(8);
-  } catch (error) {
-    console.warn("Failed to fetch LTC balance:", error);
-    return "0";
+  const result = await fetchLtcBalance(address);
+  if (result.error && result.balance === "") {
+    console.warn("All LTC balance providers failed:", result.error);
+    return "";
   }
+  return result.balance;
 };
 
-// ── LTC Fee Estimation ───────────────────────────────────────────────
-
 export const getLtcFeeEstimate = async (): Promise<number> => {
-  try {
-    const res = await fetch("https://api.blockcypher.com/v1/ltc/main");
-    if (!res.ok) return 0.0001;
-    const data = await res.json();
-    const feePerKb = data.medium_fee_per_kb || 10000;
-    // Estimate ~250 bytes for a simple P2WPKH tx
-    const feeSatoshis = Math.ceil((feePerKb / 1000) * 250);
-    return feeSatoshis / 1e8;
-  } catch {
-    return 0.0001; // fallback
-  }
+  return fetchLtcFee();
 };
 
 // ── Real LTC Send via BlockCypher ────────────────────────────────────

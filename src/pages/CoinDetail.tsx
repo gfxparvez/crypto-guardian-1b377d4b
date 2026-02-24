@@ -6,23 +6,15 @@ import { Button } from "@/components/ui/button";
 import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
-import { fetchOnChainTransactions, type OnChainTransaction } from "@/lib/transactions";
 import { fetchPriceChart } from "@/lib/prices";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const CoinDetail = () => {
   const navigate = useNavigate();
-  const { wallet, prices, balances } = useWallet();
-  const [transactions, setTransactions] = useState<OnChainTransaction[]>([]);
+  const { wallet, prices, balances, transactions, syncMeta } = useWallet();
   const [copied, setCopied] = useState(false);
   const [chartData, setChartData] = useState<{ time: string; price: number }[]>([]);
   const [chartLoading, setChartLoading] = useState(true);
-
-  useEffect(() => {
-    if (wallet?.addresses) {
-      fetchOnChainTransactions(wallet.addresses).then(setTransactions);
-    }
-  }, [wallet]);
 
   useEffect(() => {
     setChartLoading(true);

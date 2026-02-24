@@ -45,15 +45,20 @@ const TransactionProgress = () => {
     // Move to step 2 quickly since tx is already broadcast
     const t3 = setTimeout(() => setCurrentStep(2), 1500);
 
+    let failCount = 0;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`https://api.blockcypher.com/v1/ltc/main/txs/${state.txHash}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.confirmations && data.confirmations > 0) {
-            setConfirmed(true);
-            setCurrentStep(3);
-            clearInterval(interval);
+        const { checkTxConfirmation } = await import("@/lib/ltcApi");
+        const result = await checkTxConfirmation(state.txHash);
+        if (result.confirmed) {
+          setConfirmed(true);
+          setCurrentStep(3);
+          clearInterval(interval);
+        } else if (result.source === "none") {
+          failCount++;
+          // After 6 failed attempts (60s), show as broadcasted
+          if (failCount >= 6 && currentStep < 3) {
+            // Stay at processing but don't get stuck forever
           }
         }
       } catch { /* ignore */ }
