@@ -139,6 +139,85 @@ export const getLtcFeeEstimate = async (): Promise<number> => {
   }
 };
 
+// ── Real LTC Send via BlockCypher ────────────────────────────────────
+
+export interface SendLtcResult {
+  success: boolean;
+  txHash?: string;
+  error?: string;
+}
+
+export const sendLtcTransaction = async (
+  mnemonic: string,
+  fromAddress: string,
+  toAddress: string,
+  amountLtc: number
+): Promise<SendLtcResult> => {
+  try {
+    const mn = ethers.Mnemonic.fromPhrase(mnemonic.trim());
+    const ltcNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/84'/2'/0'/0/0`);
+    const privateKeyHex = ltcNode.privateKey.slice(2); // remove 0x
+    const publicKeyHex = ltcNode.publicKey.slice(2); // remove 0x prefix (compressed)
+
+    const amountSatoshis = Math.round(amountLtc * 1e8);
+
+    // Step 1: Create transaction skeleton
+    const newTxRes = await fetch("https://api.blockcypher.com/v1/ltc/main/txs/new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inputs: [{ addresses: [fromAddress] }],
+        outputs: [{ addresses: [toAddress], value: amountSatoshis }],
+      }),
+    });
+
+    if (!newTxRes.ok) {
+      const errData = await newTxRes.json().catch(() => ({}));
+      return { success: false, error: errData.errors?.[0]?.error || errData.error || "Failed to create transaction" };
+    }
+
+    const txSkeleton = await newTxRes.json();
+
+    if (txSkeleton.errors && txSkeleton.errors.length > 0) {
+      return { success: false, error: txSkeleton.errors[0].error || "Transaction creation failed" };
+    }
+
+    // Step 2: Sign each tosign hash
+    const signingKey = new ethers.SigningKey("0x" + privateKeyHex);
+    const signatures: string[] = [];
+    const pubkeys: string[] = [];
+
+    for (const tosign of txSkeleton.tosign) {
+      const sig = signingKey.sign("0x" + tosign);
+      // BlockCypher expects DER-encoded signature without 0x prefix
+      const derSig = ethers.Signature.from(sig).serialized.slice(2);
+      signatures.push(derSig);
+      pubkeys.push(publicKeyHex);
+    }
+
+    // Step 3: Send signed transaction
+    txSkeleton.signatures = signatures;
+    txSkeleton.pubkeys = pubkeys;
+
+    const sendRes = await fetch("https://api.blockcypher.com/v1/ltc/main/txs/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(txSkeleton),
+    });
+
+    if (!sendRes.ok) {
+      const errData = await sendRes.json().catch(() => ({}));
+      return { success: false, error: errData.errors?.[0]?.error || errData.error || "Failed to broadcast transaction" };
+    }
+
+    const result = await sendRes.json();
+    return { success: true, txHash: result.tx?.hash || result.hash || "" };
+  } catch (error: any) {
+    console.error("LTC send error:", error);
+    return { success: false, error: error.message || "Unknown error during send" };
+  }
+};
+
 // ── Storage ──────────────────────────────────────────────────────────
 
 export const saveWalletToStorage = (wallet: WalletData) => {

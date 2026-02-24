@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
-import { getLtcFeeEstimate } from "@/lib/wallet";
+import { getLtcFeeEstimate, sendLtcTransaction } from "@/lib/wallet";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -31,16 +31,10 @@ const SendPage = () => {
   const [fee, setFee] = useState(0);
   const [estimating, setEstimating] = useState(false);
 
-  if (!wallet) { navigate("/"); return null; }
+  useEffect(() => {
+    if (!wallet) { navigate("/"); return; }
+  }, [wallet, navigate]);
 
-  const balance = parseFloat(balances["ltc"] || "0");
-  const price = prices["ltc"]?.usd || 0;
-  const amountNum = parseFloat(amount || "0");
-  const usdValue = amountNum * price;
-  const feeUsd = fee * price;
-  const totalDeducted = amountNum + fee;
-
-  // Estimate fee on load
   useEffect(() => {
     const loadFee = async () => {
       setEstimating(true);
@@ -50,6 +44,16 @@ const SendPage = () => {
     };
     loadFee();
   }, []);
+
+  if (!wallet) return null;
+
+  const balance = parseFloat(balances["ltc"] || "0");
+  const price = prices["ltc"]?.usd || 0;
+  const amountNum = parseFloat(amount || "0");
+  const usdValue = amountNum * price;
+  const feeUsd = fee * price;
+  const totalDeducted = amountNum + fee;
+
 
   const handleMax = async () => {
     setEstimating(true);
@@ -73,21 +77,27 @@ const SendPage = () => {
 
     setSending(true);
 
-    // Generate order ID
     const orderId = Date.now().toString() + Math.random().toString(36).slice(2, 10);
     const submittedAt = Date.now();
 
-    // For now, simulate tx hash (real sending requires raw tx construction)
-    const txHash = "pending_" + orderId;
+    // Real blockchain send
+    const fromAddress = wallet.addresses["ltc"];
+    const result = await sendLtcTransaction(wallet.mnemonic, fromAddress, recipient.trim(), amountNum);
 
-    // Navigate to progress page
+    if (!result.success) {
+      setSending(false);
+      toast({ title: "Send Failed", description: result.error || "Transaction failed", variant: "destructive" });
+      return;
+    }
+
+    // Navigate to progress page with real tx hash
     navigate("/tx-progress", {
       state: {
         amount: amountNum.toFixed(8),
         fee: fee.toFixed(8),
         feeUsd: feeUsd.toFixed(2),
         toAddress: recipient.trim(),
-        txHash,
+        txHash: result.txHash || "",
         orderId,
         submittedAt,
       },
@@ -120,10 +130,7 @@ const SendPage = () => {
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <label className="text-sm text-muted-foreground">Amount (LTC)</label>
-                  <button
-                    onClick={handleMax}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
+                  <button onClick={handleMax} className="text-xs font-medium text-primary hover:underline">
                     Max: {balance.toFixed(8)}
                   </button>
                 </div>
@@ -146,7 +153,6 @@ const SendPage = () => {
                 )}
               </div>
 
-              {/* Fee Breakdown */}
               {amountNum > 0 && (
                 <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
                   <div className="flex justify-between text-xs text-muted-foreground">
