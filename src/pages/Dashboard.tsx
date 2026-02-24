@@ -7,12 +7,12 @@ import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
 import { SUPPORTED_COINS } from "@/lib/coins";
-import { getTransactions, type TransactionRecord } from "@/lib/firebase";
-
+import { fetchOnChainTransactions, type OnChainTransaction } from "@/lib/transactions";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { wallet, prices, balances, refreshPrices, refreshBalances, getTotalBalance, logout } = useWallet();
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [transactions, setTransactions] = useState<OnChainTransaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -20,8 +20,12 @@ const Dashboard = () => {
   }, [wallet, navigate]);
 
   useEffect(() => {
-    if (wallet?.addresses?.pol) {
-      getTransactions(wallet.addresses.pol).then(setTransactions);
+    if (wallet?.addresses) {
+      setTxLoading(true);
+      fetchOnChainTransactions(wallet.addresses).then((txs) => {
+        setTransactions(txs);
+        setTxLoading(false);
+      });
     }
   }, [wallet]);
 
@@ -38,8 +42,12 @@ const Dashboard = () => {
   const handleRefresh = () => {
     refreshPrices();
     refreshBalances();
-    if (wallet?.addresses?.pol) {
-      getTransactions(wallet.addresses.pol).then(setTransactions);
+    if (wallet?.addresses) {
+      setTxLoading(true);
+      fetchOnChainTransactions(wallet.addresses).then((txs) => {
+        setTransactions(txs);
+        setTxLoading(false);
+      });
     }
   };
 

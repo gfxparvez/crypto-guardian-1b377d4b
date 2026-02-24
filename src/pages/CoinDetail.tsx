@@ -7,7 +7,7 @@ import FloatingBackground from "@/components/FloatingBackground";
 import GlassCard from "@/components/GlassCard";
 import { useWallet } from "@/contexts/WalletContext";
 import { getCoinById } from "@/lib/coins";
-import { getTransactions, type TransactionRecord } from "@/lib/firebase";
+import { fetchOnChainTransactions, type OnChainTransaction } from "@/lib/transactions";
 import { fetchPriceChart } from "@/lib/prices";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -15,16 +15,16 @@ const CoinDetail = () => {
   const { coinId } = useParams<{ coinId: string }>();
   const navigate = useNavigate();
   const { wallet, prices, balances } = useWallet();
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [transactions, setTransactions] = useState<OnChainTransaction[]>([]);
   const [copied, setCopied] = useState(false);
   const [chartData, setChartData] = useState<{ time: string; price: number }[]>([]);
   const [chartLoading, setChartLoading] = useState(true);
 
   useEffect(() => {
-    if (wallet?.addresses?.pol && coinId) {
+    if (wallet?.addresses && coinId) {
       const coin = getCoinById(coinId);
       if (coin) {
-        getTransactions(wallet.addresses.pol).then((txs) => {
+        fetchOnChainTransactions(wallet.addresses).then((txs) => {
           setTransactions(txs.filter(t => t.coin === coin.symbol));
         });
       }
