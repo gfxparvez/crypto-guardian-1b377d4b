@@ -125,7 +125,7 @@ export const getLtcFeeEstimate = async (): Promise<number> => {
   return fetchLtcFee();
 };
 
-// ── Real LTC Send via BlockCypher ────────────────────────────────────
+// ── Real LTC Send with fallback ──────────────────────────────────────
 
 export interface SendLtcResult {
   success: boolean;
@@ -139,15 +139,14 @@ export const sendLtcTransaction = async (
   toAddress: string,
   amountLtc: number
 ): Promise<SendLtcResult> => {
+  const mn = ethers.Mnemonic.fromPhrase(mnemonic.trim());
+  const ltcNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/84'/2'/0'/0/0`);
+  const privateKeyHex = ltcNode.privateKey.slice(2);
+  const publicKeyHex = ltcNode.publicKey.slice(2);
+  const amountSatoshis = Math.round(amountLtc * 1e8);
+
+  // ── Attempt 1: BlockCypher server-side skeleton ──
   try {
-    const mn = ethers.Mnemonic.fromPhrase(mnemonic.trim());
-    const ltcNode = ethers.HDNodeWallet.fromMnemonic(mn, `m/84'/2'/0'/0/0`);
-    const privateKeyHex = ltcNode.privateKey.slice(2); // remove 0x
-    const publicKeyHex = ltcNode.publicKey.slice(2); // remove 0x prefix (compressed)
-
-    const amountSatoshis = Math.round(amountLtc * 1e8);
-
-    // Step 1: Create transaction skeleton
     const newTxRes = await fetch("https://api.blockcypher.com/v1/ltc/main/txs/new", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -157,50 +156,79 @@ export const sendLtcTransaction = async (
       }),
     });
 
-    if (!newTxRes.ok) {
-      const errData = await newTxRes.json().catch(() => ({}));
-      return { success: false, error: errData.errors?.[0]?.error || errData.error || "Failed to create transaction" };
-    }
+    if (newTxRes.ok) {
+      const txSkeleton = await newTxRes.json();
+      if (txSkeleton.errors?.length) {
+        // Don't fallback for logical errors like insufficient funds
+        return { success: false, error: txSkeleton.errors[0].error || "Transaction creation failed" };
+      }
 
-    const txSkeleton = await newTxRes.json();
+      const signingKey = new ethers.SigningKey("0x" + privateKeyHex);
+      const signatures: string[] = [];
+      const pubkeys: string[] = [];
 
-    if (txSkeleton.errors && txSkeleton.errors.length > 0) {
-      return { success: false, error: txSkeleton.errors[0].error || "Transaction creation failed" };
-    }
+      for (const tosign of txSkeleton.tosign) {
+        const sig = signingKey.sign("0x" + tosign);
+        const derSig = ethers.Signature.from(sig).serialized.slice(2);
+        signatures.push(derSig);
+        pubkeys.push(publicKeyHex);
+      }
 
-    // Step 2: Sign each tosign hash
-    const signingKey = new ethers.SigningKey("0x" + privateKeyHex);
-    const signatures: string[] = [];
-    const pubkeys: string[] = [];
+      txSkeleton.signatures = signatures;
+      txSkeleton.pubkeys = pubkeys;
 
-    for (const tosign of txSkeleton.tosign) {
-      const sig = signingKey.sign("0x" + tosign);
-      // BlockCypher expects DER-encoded signature without 0x prefix
-      const derSig = ethers.Signature.from(sig).serialized.slice(2);
-      signatures.push(derSig);
-      pubkeys.push(publicKeyHex);
-    }
+      const sendRes = await fetch("https://api.blockcypher.com/v1/ltc/main/txs/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(txSkeleton),
+      });
 
-    // Step 3: Send signed transaction
-    txSkeleton.signatures = signatures;
-    txSkeleton.pubkeys = pubkeys;
+      if (sendRes.ok) {
+        const result = await sendRes.json();
+        return { success: true, txHash: result.tx?.hash || result.hash || "" };
+      }
 
-    const sendRes = await fetch("https://api.blockcypher.com/v1/ltc/main/txs/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(txSkeleton),
-    });
-
-    if (!sendRes.ok) {
       const errData = await sendRes.json().catch(() => ({}));
-      return { success: false, error: errData.errors?.[0]?.error || errData.error || "Failed to broadcast transaction" };
+      console.warn("BlockCypher send failed, falling back to raw tx:", errData);
+    } else {
+      console.warn("BlockCypher tx/new failed, falling back to raw tx");
+    }
+  } catch (e) {
+    console.warn("BlockCypher unreachable, falling back to raw tx:", e);
+  }
+
+  // ── Attempt 2: Raw transaction via LitecoinSpace UTXOs + broadcast ──
+  try {
+    const { fetchUTXOs, buildAndSignRawTx, broadcastRawTx } = await import("./ltcRawTx");
+
+    const utxos = await fetchUTXOs(fromAddress);
+    if (utxos.length === 0) {
+      return { success: false, error: "No UTXOs found – wallet may have zero balance" };
     }
 
-    const result = await sendRes.json();
-    return { success: true, txHash: result.tx?.hash || result.hash || "" };
+    // Estimate fee: ~250 vbytes * 1 sat/vbyte minimum, or use fetched fee
+    const { fetchLtcFee } = await import("./ltcApi");
+    const feeEstLtc = await fetchLtcFee();
+    const feeSats = Math.max(Math.round(feeEstLtc * 1e8), 2500); // minimum 2500 sats
+
+    const rawHex = buildAndSignRawTx(
+      utxos,
+      toAddress,
+      amountSatoshis,
+      feeSats,
+      fromAddress,
+      privateKeyHex,
+      publicKeyHex,
+    );
+
+    const txid = await broadcastRawTx(rawHex);
+    if (txid) {
+      return { success: true, txHash: txid };
+    }
+    return { success: false, error: "Transaction broadcast returned no txid" };
   } catch (error: any) {
-    console.error("LTC send error:", error);
-    return { success: false, error: error.message || "Unknown error during send" };
+    console.error("Raw tx send error:", error);
+    return { success: false, error: error.message || "Failed to send transaction" };
   }
 };
 
